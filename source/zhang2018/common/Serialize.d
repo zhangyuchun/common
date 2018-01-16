@@ -43,97 +43,6 @@ byte getbasicsize(byte type)
 		assert(0);
 }
 
-byte[] serialize(T)(T t) if(isScalarType!T)
-{
-	byte[] data;
-	data.length = T.sizeof + 1;
-	data[0] = getbasictype(T.sizeof);
-	memcpy(data.ptr + 1 , &t , T.sizeof);
-	return data;
-}
-
-T deserialize(T )(const byte[] data , out long parse_index) if(isScalarType!T)
-{
-	assert( cast(byte)T.sizeof == getbasicsize(data[0]));
-	
-	T value;
-	memcpy(&value , data.ptr + 1 , T.sizeof);
-	
-	parse_index = T.sizeof + 1;
-	return value;
-}
-
-size_t getsize(T)(T t) if(isScalarType!T)
-{
-	return T.sizeof + 1;
-}
-
-
-// TString
-// 1 type 4
-// 2 len 
-//  data
-
-byte[] serialize(string str ) 
-{
-	byte[] data;
-	ushort len = cast(ushort)str.length;
-	data.length = 1 + 2 + len;
-	data[0] = 4;
-	memcpy(data.ptr + 1 , &len , 2);
-	memcpy(data.ptr + 3 , str.toStringz() , len);
-	return data;
-}
-
-string deserialize(T)(const byte[] data , out long parse_index) if(is(T == string))
-{
-	assert(data[0] == 4);
-	uint len;
-	memcpy(&len , data.ptr + 1 , 2);
-	parse_index = 3 + len;
-	return cast(T)(data[3 .. 3 + len].dup);
-}
-
-size_t getsize(string str ) 
-{
-	return 1 + 2 + str.length;
-}
-
-// TUnion
-// 1 type 5
-// 1 len 
-// 	 data
-
-byte[] serialize(T)(T t) if(is(T == union))
-{
-	byte[] data;
-	data.length = T.sizeof + 2;
-	data[0] = 5;
-	data[1] = T.sizeof;
-	memcpy(data.ptr + 2 , &t , T.sizeof);
-	return data;
-}
-
-T deserialize(T)(const byte[] data , out long parse_index) if(is(T == union))
-{
-	assert(data[0] == 5);
-	
-	T value;
-	byte len;
-	memcpy(&len , data.ptr + 1 , 1);
-	parse_index = 2 + len;
-	memcpy(&value , data.ptr + 2 , len);
-	return value;
-}
-
-size_t getsize(T)(T t) if(is(T == union))
-{
-	return 2 + T.sizeof;
-}
-
-
-
-
 string serializeMembers(T)()
 {
 	string str;
@@ -172,6 +81,90 @@ string getsizeMembers(T)()
 
 
 
+public:
+
+
+
+byte[] serialize(T)(T t) if(isScalarType!T)
+{
+	byte[] data;
+	data.length = T.sizeof + 1;
+	data[0] = getbasictype(T.sizeof);
+	memcpy(data.ptr + 1 , &t , T.sizeof);
+	return data;
+}
+
+
+T deserialize(T )(const byte[] data ) if(isScalarType!T)
+{
+	long parse_index;
+	return deserialize!T(data , parse_index);
+}
+
+T deserialize(T )(const byte[] data , out long parse_index) if(isScalarType!T)
+{
+	assert( cast(byte)T.sizeof == getbasicsize(data[0]));
+	
+	T value;
+	memcpy(&value , data.ptr + 1 , T.sizeof);
+	
+	parse_index = T.sizeof + 1;
+	return value;
+}
+
+size_t getsize(T)(T t) if(isScalarType!T)
+{
+	return T.sizeof + 1;
+}
+
+
+
+
+// TUnion
+// 1 type 5
+// 1 len 
+// 	 data
+
+byte[] serialize(T)(T t) if(is(T == union))
+{
+	byte[] data;
+	data.length = T.sizeof + 2;
+	data[0] = 5;
+	data[1] = T.sizeof;
+	memcpy(data.ptr + 2 , &t , T.sizeof);
+	return data;
+}
+
+T deserialize(T)(const byte[] data ) if(is(T == union))
+{
+	long parser_index;
+	return deserialize!T(data , parser_index);
+}
+
+T deserialize(T)(const byte[] data , out long parse_index) if(is(T == union))
+{
+	assert(data[0] == 5);
+	
+	T value;
+	byte len;
+	memcpy(&len , data.ptr + 1 , 1);
+	parse_index = 2 + len;
+	memcpy(&value , data.ptr + 2 , len);
+	return value;
+}
+
+size_t getsize(T)(T t) if(is(T == union))
+{
+	return 2 + T.sizeof;
+}
+
+
+
+
+
+
+
+
 // TSArray
 // 1 type 8
 // 2 size
@@ -194,6 +187,12 @@ byte[] serialize(T)( T t) if(isStaticArray!T)
 	return header ~ data;
 }
 
+T deserialize(T)(const byte[] data ) if(isStaticArray!T)
+{
+	long parse_index;
+
+	return deserialize!T(data , parse_index);
+}
 
 T deserialize(T)(const byte[] data , out long parse_index) if(isStaticArray!T)
 {
@@ -228,7 +227,38 @@ size_t getsize(T)( T t) if(isStaticArray!T)
 	return total;
 }
 
-public:
+
+
+// TString
+// 1 type 4
+// 2 len 
+//  data
+
+byte[] serialize(string str ) 
+{
+	byte[] data;
+	ushort len = cast(ushort)str.length;
+	data.length = 1 + 2 + len;
+	data[0] = 4;
+	memcpy(data.ptr + 1 , &len , 2);
+	memcpy(data.ptr + 3 , str.toStringz() , len);
+	return data;
+}
+
+string deserialize(T)(const byte[] data , out long parse_index) if(is(T == string))
+{
+	assert(data[0] == 4);
+	uint len;
+	memcpy(&len , data.ptr + 1 , 2);
+	parse_index = 3 + len;
+	return cast(T)(data[3 .. 3 + len].dup);
+}
+
+size_t getsize(string str ) 
+{
+	return 1 + 2 + str.length;
+}
+
 
 //  TDArray
 // 1  type 9
