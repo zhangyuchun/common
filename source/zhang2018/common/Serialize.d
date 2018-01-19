@@ -53,7 +53,7 @@ string serializeMembers(T)()
 	return str;
 }
 
-string deserializeMembers(T)()
+string unserializeMembers(T)()
 {
 	string str;
 	str ~= "long index = 3; ";
@@ -62,7 +62,7 @@ string deserializeMembers(T)()
 	{
 		str ~=" if ( index < parse_index)"; 
 		str ~= "{";
-		str ~= "t." ~ m ~ " = deserialize!(typeof(t." ~ m ~ "))(data[cast(uint)index .. data.length] , parse); ";
+		str ~= "t." ~ m ~ " = unserialize!(typeof(t." ~ m ~ "))(data[cast(uint)index .. data.length] , parse); ";
 		str ~= "index += parse; }";
 		
 	}
@@ -95,13 +95,13 @@ byte[] serialize(T)(T t) if(isScalarType!T)
 }
 
 
-T deserialize(T )(const byte[] data ) if(isScalarType!T)
+T unserialize(T )(const byte[] data ) if(isScalarType!T)
 {
 	long parse_index;
-	return deserialize!T(data , parse_index);
+	return unserialize!T(data , parse_index);
 }
 
-T deserialize(T )(const byte[] data , out long parse_index) if(isScalarType!T)
+T unserialize(T )(const byte[] data , out long parse_index) if(isScalarType!T)
 {
 	assert( cast(byte)T.sizeof == getbasicsize(data[0]));
 	
@@ -137,13 +137,13 @@ byte[] serialize(T)(T t) if(is(T == union))
 	return data;
 }
 
-T deserialize(T)(const byte[] data ) if(is(T == union))
+T unserialize(T)(const byte[] data ) if(is(T == union))
 {
 	long parser_index;
-	return deserialize!T(data , parser_index);
+	return unserialize!T(data , parser_index);
 }
 
-T deserialize(T)(const byte[] data , out long parse_index) if(is(T == union))
+T unserialize(T)(const byte[] data , out long parse_index) if(is(T == union))
 {
 	assert(data[0] == 5);
 	
@@ -189,14 +189,14 @@ byte[] serialize(T)( T t) if(isStaticArray!T)
 	return header ~ data;
 }
 
-T deserialize(T)(const byte[] data ) if(isStaticArray!T)
+T unserialize(T)(const byte[] data ) if(isStaticArray!T)
 {
 	long parse_index;
 
-	return deserialize!T(data , parse_index);
+	return unserialize!T(data , parse_index);
 }
 
-T deserialize(T)(const byte[] data , out long parse_index) if(isStaticArray!T)
+T unserialize(T)(const byte[] data , out long parse_index) if(isStaticArray!T)
 {
 	assert(data[0] == 8);
 	T value;
@@ -210,7 +210,7 @@ T deserialize(T)(const byte[] data , out long parse_index) if(isStaticArray!T)
 	for(size_t i = 0 ; i < uSize ; i++)
 	{
 		parse = 0;
-		value[i] = deserialize!(typeof(value[0]))(data[index .. data.length] , parse);
+		value[i] = unserialize!(typeof(value[0]))(data[index .. data.length] , parse);
 		index += parse;
 	}
 	
@@ -248,13 +248,13 @@ byte[] serialize(string str )
 }
 
 
-string deserialize(T)(const byte[] data ) if(is(T == string))
+string unserialize(T)(const byte[] data ) if(is(T == string))
 {
 	long parse_index;
-	return deserialize!T(data , parse_index);
+	return unserialize!T(data , parse_index);
 }
 
-string deserialize(T)(const byte[] data , out long parse_index) if(is(T == string))
+string unserialize(T)(const byte[] data , out long parse_index) if(is(T == string))
 {
 	assert(data[0] == 4);
 	uint len;
@@ -294,14 +294,14 @@ byte[] serialize(T)( T t) if(isDynamicArray!T && !is(T == string))
 }
 
 
-T deserialize(T)(const byte[] data )  if(isDynamicArray!T && !is(T == string))
+T unserialize(T)(const byte[] data )  if(isDynamicArray!T && !is(T == string))
 {
 	assert(data[0] == 9); 	
 	long parse_index;
-	return deserialize!T(data , parse_index);
+	return unserialize!T(data , parse_index);
 }
 
-T deserialize(T)(const byte[] data , out long parse_index)  if(isDynamicArray!T && !is(T == string))
+T unserialize(T)(const byte[] data , out long parse_index)  if(isDynamicArray!T && !is(T == string))
 {
 	assert(data[0] == 9);
 
@@ -316,7 +316,7 @@ T deserialize(T)(const byte[] data , out long parse_index)  if(isDynamicArray!T 
 	long parse = 0;
 	for(size_t i = 0 ; i < uSize ; i++)
 	{
-		value[i] = deserialize!(typeof(value[0]))(data[index .. data.length] , parse);
+		value[i] = unserialize!(typeof(value[0]))(data[index .. data.length] , parse);
 		index += parse;
 	}
 	
@@ -359,7 +359,7 @@ byte[] serialize(T)(T t) if(is(T == struct))
 }
 
 
-T deserialize(T)(const byte[] data , out long parse_index) if(is(T == struct))
+T unserialize(T)(const byte[] data , out long parse_index) if(is(T == struct))
 {
 	assert(data[0] == 6);
 	
@@ -368,18 +368,18 @@ T deserialize(T)(const byte[] data , out long parse_index) if(is(T == struct))
 	memcpy(&len , data.ptr + 1 , 4);
 	parse_index = 5 + len;
 	
-	mixin(deserializeMembers!T());
+	mixin(unserializeMembers!T());
 	
 	return t;
 }
 
-T deserialize(T)(const byte[] data ) if(is(T == struct))
+T unserialize(T)(const byte[] data ) if(is(T == struct))
 {
 	assert(data[0] == 6);
 
 	long parse_index;
 
-	return deserialize!T(data , parse_index);
+	return unserialize!T(data , parse_index);
 
 
 }
@@ -407,14 +407,13 @@ byte[] serialize(T)(T t) if(is(T == class))
 	
 	mixin(serializeMembers!T());
 
-	
 	uint len = cast(uint)data.length;
 	memcpy(header.ptr + 1 , &len , 4);
 	return header ~ data;
 }
 
 
-T deserialize(T)(const byte[] data , out long parse_index)if(is(T == class))
+T unserialize(T)(const byte[] data , out long parse_index)if(is(T == class))
 {
 	assert(data[0] == 7);
 
@@ -422,18 +421,18 @@ T deserialize(T)(const byte[] data , out long parse_index)if(is(T == class))
 	uint len;
 	memcpy(&len , data.ptr + 1 , 4);
 	parse_index = 5 + len;
-	mixin(deserializeMembers!T());
+	mixin(unserializeMembers!T());
 	
 	return t;
 }
 
-T deserialize(T)(const byte[] data )if(is(T == class))
+T unserialize(T)(const byte[] data )if(is(T == class))
 {
 	assert(data[0] == 7);
 	
 	long parse_index;
 	
-	return deserialize!T(data , parse_index);
+	return unserialize!T(data , parse_index);
 }
 
 size_t getsize(T)(T t) if(is(T == class))
