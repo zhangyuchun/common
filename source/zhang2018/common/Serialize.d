@@ -120,11 +120,13 @@ size_t getsize(T)(T t) if(isScalarType!T)
 
 
 
-// TUnion
+// TUnion			don't support TUnion
 // 1 type 5
 // 1 len 
 // 	 data
 
+
+/*
 byte[] serialize(T)(T t) if(is(T == union))
 {
 	byte[] data;
@@ -158,7 +160,7 @@ size_t getsize(T)(T t) if(is(T == union))
 	return 2 + T.sizeof;
 }
 
-
+*/
 
 
 
@@ -167,23 +169,23 @@ size_t getsize(T)(T t) if(is(T == union))
 
 // TSArray
 // 1 type 8
-// 2 size
+// 4 size
 // 4 length
 // data
 
 byte[] serialize(T)( T t) if(isStaticArray!T)
 {
-	byte[7] header;
+	byte[9] header;
 	header[0] = 8;
-	ushort uSize = cast(ushort)t.length;
-	memcpy(header.ptr + 1 , &uSize , 2);
+	uint uSize = cast(uint)t.length;
+	memcpy(header.ptr + 1 , &uSize , 4);
 	byte[] data;
 	for(size_t i = 0 ; i < uSize ; i++)
 	{
 		data ~= serialize(t[i]);
 	}
-	size_t len = data.length;
-	memcpy(header.ptr + 3 , &len , 4);
+	uint len = cast(uint)data.length;
+	memcpy(header.ptr + 5 , &len , 4);
 	return header ~ data;
 }
 
@@ -198,12 +200,12 @@ T deserialize(T)(const byte[] data , out long parse_index) if(isStaticArray!T)
 {
 	assert(data[0] == 8);
 	T value;
-	ushort uSize;
+	uint uSize;
 	uint len;
-	memcpy(&uSize , data.ptr + 1 , 2);
-	memcpy(&len , data.ptr + 3 , 4);
-	parse_index = 7 + len;
-	long index = 7;
+	memcpy(&uSize , data.ptr + 1 , 4);
+	memcpy(&len , data.ptr + 5 , 4);
+	parse_index = 9 + len;
+	long index = 9;
 	long parse = 0;
 	for(size_t i = 0 ; i < uSize ; i++)
 	{
@@ -218,7 +220,7 @@ T deserialize(T)(const byte[] data , out long parse_index) if(isStaticArray!T)
 
 size_t getsize(T)( T t) if(isStaticArray!T)
 {
-	long total = 7;
+	long total = 9;
 	for(size_t i = 0 ; i < uSize ; i++)
 	{
 		total += getsize(t[i]);
@@ -231,56 +233,63 @@ size_t getsize(T)( T t) if(isStaticArray!T)
 
 // TString
 // 1 type 4
-// 2 len 
+// 4 len 
 //  data
 
 byte[] serialize(string str ) 
 {
 	byte[] data;
-	ushort len = cast(ushort)str.length;
-	data.length = 1 + 2 + len;
+	uint len = cast(uint)str.length;
+	data.length = 1 + 4 + len;
 	data[0] = 4;
-	memcpy(data.ptr + 1 , &len , 2);
-	memcpy(data.ptr + 3 , str.toStringz() , len);
+	memcpy(data.ptr + 1 , &len , 4);
+	memcpy(data.ptr + 5 , str.toStringz() , len);
 	return data;
+}
+
+
+string deserialize(T)(const byte[] data ) if(is(T == string))
+{
+	long parse_index;
+	return deserialize!T(data , parse_index);
 }
 
 string deserialize(T)(const byte[] data , out long parse_index) if(is(T == string))
 {
 	assert(data[0] == 4);
 	uint len;
-	memcpy(&len , data.ptr + 1 , 2);
-	parse_index = 3 + len;
-	return cast(T)(data[3 .. 3 + len].dup);
+	memcpy(&len , data.ptr + 1 , 4);
+	parse_index = 5 + len;
+	return cast(T)(data[5 .. 5 + len].dup);
 }
 
 size_t getsize(string str ) 
 {
-	return 1 + 2 + str.length;
+	return 1 + 4 + str.length;
 }
 
 
 //  TDArray
 // 1  type 9
-// 2 size
+// 4 size
 // 4 length
 // data
 
 byte[] serialize(T)( T t) if(isDynamicArray!T && !is(T == string))
 {
-	byte[7] header;
+	byte[9] header;
 	header[0] = 9;
 	
 	
-	ushort uSize = cast(ushort)t.length;
-	memcpy(header.ptr + 1 , &uSize , 2);
+	uint uSize = cast(uint)t.length;
+	memcpy(header.ptr + 1 , &uSize , 4);
 	byte[] data;
 	for(size_t i = 0 ; i < uSize ; i++)
 	{
 		data ~= serialize(t[i]);
 	}
-	size_t len = data.length;
-	memcpy(header.ptr + 3 , &len , 4);
+	uint len = cast(uint)data.length;
+	memcpy(header.ptr + 5 , &len , 4);
 	return header ~ data;
 }
 
@@ -297,13 +306,13 @@ T deserialize(T)(const byte[] data , out long parse_index)  if(isDynamicArray!T 
 	assert(data[0] == 9);
 
 	T value;
-	ushort uSize;
+	uint uSize;
 	uint len;
-	memcpy(&uSize , data.ptr + 1 , 2);
-	memcpy(&len , data.ptr + 3 , 4);
+	memcpy(&uSize , data.ptr + 1 , 4);
+	memcpy(&len , data.ptr + 5 , 4);
 	value.length = uSize;
-	parse_index = 7 + len;
-	uint index = 7;
+	parse_index = 9 + len;
+	uint index = 9;
 	long parse = 0;
 	for(size_t i = 0 ; i < uSize ; i++)
 	{
@@ -318,7 +327,7 @@ T deserialize(T)(const byte[] data , out long parse_index)  if(isDynamicArray!T 
 
 size_t getsize(T)( T t) if(isDynamicArray!T && !is(T == string))
 {
-	long total = 7;
+	long total = 9;
 	for(size_t i = 0 ; i < uSize ; i++)
 	{
 		total += serialize(t[i]);
@@ -332,20 +341,20 @@ size_t getsize(T)( T t) if(isDynamicArray!T && !is(T == string))
 
 // TStruct
 // 1 type 6
-// 2 len
+// 4 len
 // data
 
 byte[] serialize(T)(T t) if(is(T == struct))
 {
-	byte[3] header;
+	byte[5] header;
 	header[0] = 6;
 	byte[] 	data;
 	
 	
 	mixin(serializeMembers!T());
 	
-	ushort len = cast(ushort)data.length;
-	memcpy(header.ptr + 1 , &len , 2);
+	uint len = cast(uint)data.length;
+	memcpy(header.ptr + 1 , &len , 4);
 	return header ~ data;
 }
 
@@ -355,9 +364,9 @@ T deserialize(T)(const byte[] data , out long parse_index) if(is(T == struct))
 	assert(data[0] == 6);
 	
 	T t;
-	ushort len;
-	memcpy(&len , data.ptr + 1 , 2);
-	parse_index = 3 + len;
+	uint len;
+	memcpy(&len , data.ptr + 1 , 4);
+	parse_index = 5 + len;
 	
 	mixin(deserializeMembers!T());
 	
@@ -377,7 +386,7 @@ T deserialize(T)(const byte[] data ) if(is(T == struct))
 
 size_t getsize(T)(T t) if(is(T == struct))
 {
-	long total;
+	long total = 5;
 	
 	mixin(getsizeMembers!T());
 
@@ -387,20 +396,20 @@ size_t getsize(T)(T t) if(is(T == struct))
 
 // TClass
 // 1 type 7
-// 2 len
+// 4 len
 //	data
 
 byte[] serialize(T)(T t) if(is(T == class))
 {
-	byte[3] header;
+	byte[5] header;
 	header[0] = 7;
 	byte[] 	data;
 	
 	mixin(serializeMembers!T());
+
 	
-	
-	ushort len = cast(ushort)data.length;
-	memcpy(header.ptr + 1 , &len , 2);
+	uint len = cast(uint)data.length;
+	memcpy(header.ptr + 1 , &len , 4);
 	return header ~ data;
 }
 
@@ -410,9 +419,9 @@ T deserialize(T)(const byte[] data , out long parse_index)if(is(T == class))
 	assert(data[0] == 7);
 
 	T t = new T;
-	ushort len;
-	memcpy(&len , data.ptr + 1 , 2);
-	parse_index = 3 + len;
+	uint len;
+	memcpy(&len , data.ptr + 1 , 4);
+	parse_index = 5 + len;
 	mixin(deserializeMembers!T());
 	
 	return t;
@@ -429,7 +438,7 @@ T deserialize(T)(const byte[] data )if(is(T == class))
 
 size_t getsize(T)(T t) if(is(T == class))
 {
-	long total;
+	long total = 5;
 	
 	mixin(getsizeMembers!T());
 	
